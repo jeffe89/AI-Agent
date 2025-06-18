@@ -1,0 +1,32 @@
+import os
+
+def write_file(working_directory, file_path, content):
+
+    # Get absolute path of directory
+    abs_working_dir = os.path.abspath(working_directory)
+
+    # Check if filepath is outside the working directory
+    abs_file_path = os.path.abspath(os.path.join(working_directory, file_path))
+    if not abs_file_path.startswith(abs_working_dir):
+        return f'Error: Cannot write to "{file_path}" as it is outside the permitted working directory'
+    
+    # Check if file path does not exist
+    if not os.path.exists(abs_file_path):
+        try:
+            os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
+        except Exception as e:
+            return f"Error: creating directory: {e}"
+
+    # Check if file path is a file and not a directory
+    if os.path.exists(abs_file_path) and os.path.isdir(abs_file_path):
+        return f'Error: "{file_path}" is a directory, not a file'
+    
+    # Write contents to file 
+    try:
+        with open(abs_file_path, "w") as f:
+            f.write(content)
+        return f'Successfully wrote to "{file_path}" ({len(content)} characters written)'
+    
+     # Return error and state exception if encountered
+    except Exception as e:
+        return f'Error writing to file: {e}'
