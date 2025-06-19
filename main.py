@@ -5,6 +5,9 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+from prompts import system_prompt
+from call_function import call_function, available_functions
+
 def main():
 
     load_dotenv()
@@ -48,15 +51,44 @@ def generate_content(client, messages, args):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001", 
         contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+            ),
     )
+    # Check for verbose flag
     if args.verbose:
         print("User prompt:", args.user_prompt)
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
 
-    # Print response to console
-    print("Response:")
-    print(response.text)
+    # If no function calls - return response text
+    if not response.function_calls:
+        return response.text
+    
+    # Create list to store function responses
+    function_responses = []
+
+    # Utilize call_function to run the function the LLM decides to call
+    for function_call_part in response.function_calls:
+        function_call_result = call_function(function_call_part, args.verbose)
+
+        # Check for empty function call result
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception("empty function call result")
+        
+        # Check for verbose flag 
+        if args.verbose:
+            print(f" -> {function_call_result.parts[0].function_response.response}")
+        
+        # Append response to function responses list
+        function_responses.append(function_call_result.parts[0])
+    
+    # Check if no responses are generated
+    if not function_responses:
+        raise Exception("no function responses generated, exiting.")
 
 if __name__ == "__main__":
     main()
